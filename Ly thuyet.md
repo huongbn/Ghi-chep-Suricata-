@@ -43,6 +43,15 @@
     - [4.5.1 pcre](#451)
     - [4.5.2 Fast Pattern](#452)
         - [4.5.2.3 Fast Pattern:'chop'](#4523)
+    - [4.5.3 Content](#453)
+    - [4.5.4 Nocase](#454)
+    - [4.5.4 Depth](#455)
+    - [4.5.6 Offset](#456)
+    - [4.5.7 Distance](#457)
+    - [4.5.8 Within](#458)
+    - [4.5.9 Isdataat](#459)
+    - [4.5.10 Dsize](#4510)
+    - [4.5.11 rpc](#4511)
 - [4.6 HTTP Keywords](#46)
     - [4.6.1 Types of modifiers](#461)
 - [4.7 Flow Keywords](#47)
@@ -345,6 +354,105 @@ Keyword này được sử dụng để match với 1 phần nào đó được 
 ```
 content: “aaaaaaaaabc”; fast_pattern:8,4;
 ```
+
+<a name="453"></a>
+
+### 4.5.3 Content
+Là dấu hiệu để xác định các mối hiểm họa an ninh mạng có thể xyar ra. Dấu hiệu có thể được sử dụng kết hợp nhiều dấu hiệu khác.
+- Cú pháp:
+```
+content: ”............”;
+content:“USER”; content:!“anonymous”;
+```
+
+Một vài kí tự đặc biệt có thể được biểu diễn như sau:
+```
+“     |22|
+;     |3B|
+:     |3A|
+|     |7C|
+```
+
+<a name="454"></a>
+
+### 4.5.4 Nocase
+Sử dụng trong content để giúp các luật không phân biệt chữ hoa và chữ thường.
+- Cú pháp:
+```
+nocase;
+```
+- Ví dụ:
+```
+content:"root";nocase;
+```
+Ví dụ trên giúp hệ thống phát hiện tất cả các từ khóa `root` mà không phân biệt chữ hoa và chữ thường
+
+<a name="455"></a>
+
+### 4.5.5 Depth và Offset
+Xác định vị trí bắt đầu phân tích trong một payload, thông thường nếu không khai báo gì thì hệ thống sẽ phân tích gói tin từ đầu tới hết, còn nếu là `1` thì hệ thống chỉ bắt đầu phân tích gói tin từ byte thứ 2 đến hết. Ngoài ra, nó còn cho phép xác định vị trí các dấu hiệu cần được kiểm tra để cảnh báo và giảm thiểu các cảnh báo sai.
+
+![Imgur](https://i.imgur.com/jqTwxpP.png)
+
+- Ta cùng so sánh 2 ví dụ sau đây:
+```
+alert tcp $HOME_NET any ->67.205.2.30 21 (msg:“Suspicious FTP Login”;
+content:“guest”; sid:5000000; rev:1;)
+```
+```
+alert tcp $HOME_NET any -> 67.205.2.30 21 (msg:“Suspicious FTP Login”
+content:“guest”; offset:5; sid:5000000; rev:1;)
+```
+Hai ví dụ trên xác định luật cho hệ thống khi có người dùng đăng nhập vào tài khoản guest, nhưng trong trường hợp này nếu không có offset thì hệ thống cảnh báo dễ bị nhầm lẫn khi có người dùng khác cùng đăng nhập vào tài khoản khác nhưng truy cập vào thư mực guest. Để giảm thiểu các cảnh báo sai, khi tạo luật cần chỉ rõ vị trí của giá trị cần kiểm tra. 
+
+![Imgur](https://i.imgur.com/2iQu5H3.png)
+
+Depth và offset có thể suer dụng đồng thời với nhau
+
+<a name="457"></a>
+
+### 4.5.7 Distance và within
+Sử dụng khi có nhiều giá trị kiểm tra trong thành phần content của rules. Mục đích là xác định khoảng cách để tiếp tục kiểm tra các giá trị tiếp theo trên payload của dữ liệu
+- ví dụ sau đây cho thấy, sau khi kiểm tra nội dung giá trị payload thứ nhất thì sau 16 byte mới tiếp tục kiểm tra nội dụng content thứ 2
+```
+alert tcp $HOME_NET 1024: -> $EXTERNAL_NET 1024: (msg:“ET P2P Ares Server Connection”; flow:established,to_server; dsize:<70; content:“r|be|bloop|00|dV”; content:“Ares|00 0a|”;
+distance:16;reference:url,aresgalaxy.sourceforge.net;reference:url,doc.emergingthreats.net/bin/view/Main/2008591; classtype:policy-violation;
+sid:2008591; rev:3;)
+```
+
+![Imgur](https://i.imgur.com/lyTPN6v.png)
+
+Distance có thể sử dụng số âm. Ví dụ sau:
+
+![Imgur](https://i.imgur.com/pTzSCw2.png)
+
+<a name="459"></a>
+
+### 4.5.9 Isdataat
+Isdatat là từ khóa để kiểm tra 1 vị trí bất kì trong payload. Ngoài ra còn có 1 keyword khác nữa là `relative`, được sử dụng để kiểm tra payload tại 1 vị trí bất kì kể từ content trước.
+- Ví dụ sau thực hiện kiểm tra byte thứ 512 của payload. Dòng thứ 2 kiểm tra byte thứ 50 của payload kể từ content thứ nhất.
+```
+isdataat:512;
+
+isdataat:50, relative;
+```
+![Imgur](https://i.imgur.com/yjU2s6Z.png)
+
+<a name="4510"></a>
+
+### 4.5.10 Dsize
+Từ khóa này dùng kể kiểm tra kích thước của payload, nó còn thuận tiện trong việc xem hệ thống có bị tràn bộ đệm hay không
+- Cú pháp:
+```
+dsize:<number>;
+```
+
+<a name="4512"></a>
+
+### 4.5.12 Replace
+Replace là keyword chỉ có thể sử dụng trong chế độ `IPS`. Ví dụ sau sẽ thay đổi content `abc` thành `def` phục vụ cho mục đích ngăn chặn xâm hại
+
+![Imgur](https://i.imgur.com/ug5jIAF.png)
 
 <a name="46"></a>
 
