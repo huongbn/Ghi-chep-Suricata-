@@ -105,3 +105,7 @@ dnf install suricata
 yum install epel-release
 yum install suricata
 ```
+
+# Thảm khảo
+- http://www.academia.edu/22184000/DOAN_HUY
+- https://bricata.com/blog/snort-suricata-bro-ids/
